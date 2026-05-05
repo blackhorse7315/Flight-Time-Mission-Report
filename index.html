@@ -158,7 +158,7 @@
             </div>
         </main>
 
-        <!-- PRINT TEMPLATE -->
+        <!-- PRINT TEMPLATE (Kerapihan ditingkatkan untuk A4) -->
         <div v-if="selectedLog" id="print-area" class="hidden bg-white p-10 text-slate-900 font-sans">
             <div class="text-center mb-8">
                 <h1 class="text-2xl font-black uppercase tracking-widest border-b-2 border-slate-900 pb-2 mb-4 text-center">FLIGHT RECORD</h1>
@@ -180,7 +180,7 @@
                         <th class="p-2 text-[9px] font-black uppercase text-center w-10">No</th>
                         <th class="p-2 text-[9px] font-black uppercase text-center w-28">Date</th>
                         <th class="p-2 text-[9px] font-black uppercase text-center">Route Manifest</th>
-                        <th class="p-2 text-[9px] font-black uppercase text-center w-24">ETD - ETA</th>
+                        <th class="p-2 text-[9px] font-black uppercase text-center w-32">ETD - ETA</th>
                         <th class="p-2 text-[9px] font-black uppercase text-center w-20">Std Dur</th>
                         <th class="p-2 text-[9px] font-black uppercase text-center w-20">Matrix Dur</th>
                     </tr>
@@ -189,8 +189,8 @@
                     <tr v-for="(route, idx) in selectedLog.routes" :key="idx" class="border-b border-slate-100">
                         <td class="p-2 text-center text-[11px]">{{ idx + 1 }}</td>
                         <td class="p-2 text-center text-[11px]">{{ formatDate(route.date) }}</td>
-                        <td class="p-2 text-center text-[11px] font-bold uppercase">{{ route.routeName }}</td>
-                        <td class="p-2 text-center text-[11px] font-mono">{{ route.etd }} — {{ route.eta }}</td>
+                        <td class="p-2 text-center text-[11px] font-bold uppercase whitespace-nowrap">{{ route.routeName }}</td>
+                        <td class="p-2 text-center text-[11px] font-mono whitespace-nowrap">{{ route.etd }} — {{ route.eta }}</td>
                         <td class="p-2 text-center text-[11px] font-bold">{{ route.flightHours }}</td>
                         <td class="p-2 text-center text-[11px] font-bold">{{ route.matrixHours }}</td>
                     </tr>
@@ -253,7 +253,7 @@
                                 <tr class="bg-slate-50 border-b border-slate-200">
                                     <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-28">Date</th>
                                     <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-40">Route manifest</th>
-                                    <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-28">ETD - ETA</th>
+                                    <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-32">ETD - ETA</th>
                                     <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-32">Duration (S/M)</th>
                                     <th class="px-4 py-2"></th>
                                 </tr>
@@ -294,7 +294,7 @@
                             <p class="font-black text-base">{{ selectedLog.totalMatrix }}</p>
                         </div>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 text-slate-900">
                         <button @click="startFullEdit" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg py-2 text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 uppercase tracking-wider">
                             <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Full Edit
                         </button>
@@ -413,7 +413,7 @@
                 </div>
 
                 <div class="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 text-white">
                         <div>
                             <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 text-center sm:text-left leading-none">Mission Std</p>
                             <p class="font-bold text-xs tracking-tight text-center sm:text-left">{{ currentTotalStd }}</p>
@@ -520,7 +520,7 @@
 
                 const formatDate = (dateStr) => {
                     if (!dateStr) return "-";
-                    return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' });
+                    return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
                 };
 
                 // COMPUTED
