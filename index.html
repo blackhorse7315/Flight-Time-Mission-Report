@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlightLog Core - Manager</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue.js 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        [v-cloak] { display: none; }
+
+        .custom-scrollbar::-webkit-scrollbar { height: 4px; width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 15mm;
+            }
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                display: block !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        .animate-zoom-in {
+            animation: zoomIn 0.2s ease-out;
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 text-sm">
+    <div id="app" v-cloak>
+        <!-- NAVBAR -->
+        <nav class="bg-white border-b border-slate-200 sticky top-0 z-40 no-print">
+            <div class="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="plane" class="text-indigo-600 w-5 h-5"></i>
+                    <h1 class="font-bold text-slate-900 tracking-tight">FlightLog <span class="text-indigo-600 font-black">Core</span></h1>
+                </div>
+                <button 
+                    @click="openNewForm"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> New Record
+                </button>
+            </div>
+        </nav>
+
+        <main class="max-w-6xl mx-auto px-4 py-6 no-print">
+            <!-- STATS GRID -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="bg-blue-50 p-2 rounded-lg text-blue-600"><i data-lucide="clock" class="w-5 h-5"></i></div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Total Std / Matrix</p>
+                        <p class="font-black text-lg leading-none">{{ globalTotalStd }} <span class="text-blue-500 font-bold ml-1 text-sm">/ {{ globalTotalMatrix }}</span></p>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="bg-indigo-50 p-2 rounded-lg text-indigo-600"><i data-lucide="map-pin" class="w-5 h-5"></i></div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Active Legs</p>
+                        <p class="font-black text-lg leading-none">{{ totalLegs }}</p>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3">
+                    <div class="bg-emerald-50 p-2 rounded-lg text-emerald-600"><i data-lucide="layers" class="w-5 h-5"></i></div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none mb-1">Total Logs</p>
+                        <p class="font-black text-lg leading-none">{{ logs.length }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD TABLE -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <h3 class="font-bold text-slate-800">Recent Operational Logs</h3>
+                    <div class="relative w-full md:w-64">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5"></i>
+                        <input 
+                            v-model="searchQuery"
+                            type="text" 
+                            placeholder="Cari log..." 
+                            class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full min-w-[700px]">
+                        <thead>
+                            <tr class="bg-slate-50/50 border-b border-slate-100">
+                                <th class="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Charterer & Type</th>
+                                <th class="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-24">Reg</th>
+                                <th class="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-24">Legs</th>
+                                <th class="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center w-40">Duration (S/M)</th>
+                                <th class="px-4 py-3 w-12 text-center"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            <tr v-for="log in filteredLogs" :key="log.id" @click="selectedLog = log" class="group hover:bg-slate-50 cursor-pointer">
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex flex-col items-center">
+                                        <span class="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors whitespace-nowrap">{{ log.charterBy }}</span>
+                                        <span class="text-[10px] text-slate-400 font-medium whitespace-nowrap">{{ log.aircraftType || '—' }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="text-[10px] font-black bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200 tracking-tighter whitespace-nowrap">{{ log.registration || '—' }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="text-[10px] font-bold text-slate-500 whitespace-nowrap">{{ log.routes.length }} Lgs</span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="font-bold text-slate-700 whitespace-nowrap">{{ log.totalHours }}</span>
+                                    <span class="text-indigo-500 ml-1 font-medium whitespace-nowrap">/ {{ log.totalMatrix }}</span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <i data-lucide="chevron-right" class="text-slate-300 group-hover:text-indigo-500 transition-colors inline w-4 h-4"></i>
+                                </td>
+                            </tr>
+                            <tr v-if="filteredLogs.length === 0">
+                                <td colspan="5" class="p-10 text-center text-slate-400 italic">Tidak ada data ditemukan</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- PRINT TEMPLATE -->
+        <div v-if="selectedLog" id="print-area" class="hidden bg-white p-10 text-slate-900 font-sans">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl font-black uppercase tracking-widest border-b-2 border-slate-900 pb-2 mb-4 text-center">FLIGHT RECORD</h1>
+                <div class="flex justify-between items-end text-left">
+                    <div>
+                        <p class="text-[10px] font-bold uppercase text-slate-500 mb-1">Aircraft Info</p>
+                        <p class="text-sm font-black">{{ selectedLog.aircraftType }} / {{ selectedLog.registration }}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-bold uppercase text-slate-500 mb-1">Chartered By</p>
+                        <p class="text-sm font-black">{{ selectedLog.charterBy }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <table class="w-full border-collapse mb-8">
+                <thead>
+                    <tr class="bg-slate-100 border-y border-slate-300">
+                        <th class="p-2 text-[9px] font-black uppercase text-center w-10">No</th>
+                        <th class="p-2 text-[9px] font-black uppercase text-center w-28">Date</th>
+                        <th class="p-2 text-[9px] font-black uppercase text-center">Route Manifest</th>
+                        <th class="p-2 text-[9px] font-black uppercase text-center w-24">ETD - ETA</th>
+                        <th class="p-2 text-[9px] font-black uppercase text-center w-20">Std Dur</th>
+                        <th class="p-2 text-[9px] font-black uppercase text-center w-20">Matrix Dur</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <tr v-for="(route, idx) in selectedLog.routes" :key="idx" class="border-b border-slate-100">
+                        <td class="p-2 text-center text-[11px]">{{ idx + 1 }}</td>
+                        <td class="p-2 text-center text-[11px]">{{ formatDate(route.date) }}</td>
+                        <td class="p-2 text-center text-[11px] font-bold uppercase">{{ route.routeName }}</td>
+                        <td class="p-2 text-center text-[11px] font-mono">{{ route.etd }} — {{ route.eta }}</td>
+                        <td class="p-2 text-center text-[11px] font-bold">{{ route.flightHours }}</td>
+                        <td class="p-2 text-center text-[11px] font-bold">{{ route.matrixHours }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="flex justify-end gap-6 border-t-2 border-slate-900 pt-4">
+                <div class="text-center px-4">
+                    <p class="text-[9px] font-black uppercase text-slate-400 mb-1">Total Standard</p>
+                    <p class="text-xl font-black">{{ selectedLog.totalHours }}</p>
+                </div>
+                <div class="text-center px-4 bg-slate-50 border border-slate-200 rounded-lg">
+                    <p class="text-[9px] font-black uppercase text-indigo-400 mb-1">Total Matrix</p>
+                    <p class="text-xl font-black text-indigo-600">{{ selectedLog.totalMatrix }}</p>
+                </div>
+            </div>
+
+            <div class="mt-20 flex justify-between">
+                <div class="text-center w-48">
+                    <p class="text-[10px] font-bold mb-16">Operations Dept.</p>
+                    <div class="border-b border-slate-900 w-full mb-1"></div>
+                    <p class="text-[9px] uppercase font-bold text-center">Signature & Name</p>
+                </div>
+                <div class="text-center w-48">
+                    <p class="text-[10px] font-bold mb-16">PIC / Captain</p>
+                    <div class="border-b border-slate-900 w-full mb-1"></div>
+                    <p class="text-[9px] uppercase font-bold text-center">Signature & Name</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODAL DETAIL -->
+        <div v-if="selectedLog && !isSingleRouteEditOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm no-print">
+            <div class="relative bg-white w-full max-w-4xl max-h-[85vh] flex flex-col rounded-xl shadow-2xl overflow-hidden border border-slate-200 animate-zoom-in text-slate-900">
+                <div class="p-4 border-b border-slate-100 bg-white flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-indigo-600 w-10 h-10 rounded-lg text-white flex items-center justify-center shadow-lg shadow-indigo-100">
+                            <i data-lucide="plane" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-slate-900 leading-tight">{{ selectedLog.charterBy }}</h3>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ selectedLog.aircraftType }} • Reg: {{ selectedLog.registration }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button 
+                            @click="handlePrint"
+                            class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors flex items-center gap-2 text-xs font-bold px-3 border border-slate-200"
+                        >
+                            <i data-lucide="printer" class="w-4 h-4"></i> Print PDF
+                        </button>
+                        <button @click="selectedLog = null" class="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition-colors"><i data-lucide="x" class="w-4.5 h-4.5"></i></button>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                    <div class="rounded-lg border border-slate-200 overflow-x-auto custom-scrollbar bg-white shadow-sm">
+                        <table class="w-full text-xs min-w-[600px]">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200">
+                                    <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-28">Date</th>
+                                    <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-40">Route manifest</th>
+                                    <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-28">ETD - ETA</th>
+                                    <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase tracking-widest text-center w-32">Duration (S/M)</th>
+                                    <th class="px-4 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr v-for="(route, idx) in selectedLog.routes" :key="idx" @click="startSingleRouteEdit(idx)" class="hover:bg-indigo-50/40 cursor-pointer transition-colors group/row">
+                                    <td class="px-4 py-2.5 text-slate-500 text-center whitespace-nowrap">
+                                        {{ formatDate(route.date) }}
+                                    </td>
+                                    <td class="px-4 py-2.5 font-bold text-slate-800 text-center whitespace-nowrap">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <div class="w-1.5 h-1.5 rounded-full bg-indigo-400 group-hover/row:bg-indigo-600 transition-colors"></div>
+                                            {{ route.routeName }}
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center text-slate-400 font-mono tracking-tight whitespace-nowrap">
+                                        {{ route.etd }} — {{ route.eta }}
+                                    </td>
+                                    <td class="px-4 py-2.5 text-center whitespace-nowrap">
+                                        <span class="font-bold text-slate-700">{{ route.flightHours }}</span>
+                                        <span class="text-indigo-600 font-bold ml-1">/ {{ route.matrixHours }}</span>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 border-t border-slate-100 shrink-0">
+                    <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                        <div class="flex-1 bg-white px-3 py-2 rounded-lg border border-slate-200 flex justify-between items-center text-slate-900 shadow-sm">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Std Duration</p>
+                            <p class="font-black text-base">{{ selectedLog.totalHours }}</p>
+                        </div>
+                        <div class="flex-1 bg-indigo-600 px-3 py-2 rounded-lg flex justify-between items-center text-white shadow-lg shadow-indigo-100">
+                            <p class="text-[9px] font-bold text-indigo-200 uppercase tracking-widest">Matrix Duration</p>
+                            <p class="font-black text-base">{{ selectedLog.totalMatrix }}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="startFullEdit" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg py-2 text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 uppercase tracking-wider">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Full Edit
+                        </button>
+                        <button @click="handleDuplicate(selectedLog)" class="px-4 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-all shadow-sm active:scale-95" title="Duplicate"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                        <button @click="handleDelete(selectedLog.id)" class="px-4 bg-white border border-slate-200 text-red-500 rounded-lg hover:bg-red-50 transition-all shadow-sm active:scale-95" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- POPUP SINGLE ROUTE EDIT -->
+        <div v-if="isSingleRouteEditOpen && singleRouteData" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm no-print">
+            <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl border border-slate-200 overflow-hidden animate-zoom-in text-slate-900">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                    <h3 class="font-bold text-sm">Modify Leg</h3>
+                    <button @click="isSingleRouteEditOpen = false" class="text-slate-400 hover:text-slate-600 transition-colors"><i data-lucide="x" class="w-4.5 h-4.5"></i></button>
+                </div>
+                <div class="p-4 space-y-4">
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1 ml-1">Leg Date</label>
+                        <input type="date" v-model="singleRouteData.date" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-slate-900" />
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1 ml-1">Route Connection</label>
+                        <input type="text" v-model="singleRouteData.routeName" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-slate-900" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1 ml-1">ETD</label>
+                            <input type="time" v-model="singleRouteData.etd" @input="updateSingleRouteDurations" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-center text-slate-900" />
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1 ml-1">ETA</label>
+                            <input type="time" v-model="singleRouteData.eta" @input="updateSingleRouteDurations" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-center text-slate-900" />
+                        </div>
+                    </div>
+                    <div class="flex gap-2 p-2 bg-slate-50 rounded-lg text-center border border-slate-100">
+                        <div class="flex-1 border-r border-slate-200 text-slate-900">
+                            <p class="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Std Log</p>
+                            <p class="font-bold text-xs">{{ singleRouteData.flightHours }}</p>
+                        </div>
+                        <div class="flex-1 text-slate-900">
+                            <p class="text-[8px] font-black text-indigo-400 uppercase leading-none mb-1">Matrix Log</p>
+                            <p class="font-bold text-xs text-indigo-600">{{ singleRouteData.matrixHours }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-50 flex gap-2 border-t border-slate-100">
+                    <button @click="isSingleRouteEditOpen = false" class="flex-1 py-1.5 text-slate-500 font-bold text-xs hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
+                    <button @click="saveSingleRoute" class="flex-[2] py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs shadow-sm transition-all uppercase tracking-wider">Update Leg</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE-OVER FORM -->
+        <div v-if="isFormOpen" class="fixed inset-0 z-[60] flex justify-end bg-slate-900/40 backdrop-blur-sm no-print">
+            <div class="absolute inset-0" @click="isFormOpen = false"></div>
+            <div class="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right border-l border-slate-200 text-slate-900">
+                <div class="p-4 border-b border-slate-100 bg-white flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center shadow-sm" :class="editingId ? 'bg-indigo-600' : 'bg-slate-900'">
+                            <i :data-lucide="editingId ? 'edit-3' : 'plus'" class="w-4 h-4"></i>
+                        </div>
+                        <h3 class="font-bold text-sm uppercase tracking-wider">{{ editingId ? 'Modify Record' : 'New Log' }}</h3>
+                    </div>
+                    <button @click="isFormOpen = false" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><i data-lucide="x" class="w-4.5 h-4.5"></i></button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-slate-50/20 text-slate-900">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1 ml-1">Charterer Name</label>
+                            <input type="text" v-model="formData.charterBy" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none font-bold text-xs shadow-sm text-slate-900" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1 ml-1">A/C Type</label>
+                                <input list="aircraft-types" v-model="formData.aircraftType" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none font-bold text-xs shadow-sm text-slate-900" />
+                                <datalist id="aircraft-types">
+                                    <option v-for="t in aircraftTypes" :key="t" :value="t">{{ t }}</option>
+                                </datalist>
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-1 ml-1">Reg No</label>
+                                <input list="registrations" v-model="formData.registration" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none font-bold text-xs shadow-sm text-slate-900" />
+                                <datalist id="registrations">
+                                    <option v-for="r in registrations" :key="r" :value="r">{{ r }}</option>
+                                </datalist>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-1">
+                            <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Operational manifest</h4>
+                            <button @click="handleAddRoute" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors uppercase tracking-tighter">Add Leg</button>
+                        </div>
+                        <div class="space-y-3">
+                            <div v-for="(route, index) in formData.routes" :key="route.id" class="bg-white border border-slate-200 rounded-xl p-3 relative group/route shadow-sm">
+                                <button v-if="formData.routes.length > 1" @click="handleRemoveRoute(route.id)" class="absolute -top-2 -right-2 bg-white text-slate-300 hover:text-red-500 p-1.5 rounded-full shadow-md border border-slate-100 transition-all opacity-0 group-hover/route:opacity-100 z-10">
+                                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                </button>
+                                <div class="grid grid-cols-2 gap-2 mb-2">
+                                    <input type="date" v-model="route.date" class="px-2 py-1 border border-slate-100 rounded text-[10px] font-bold outline-none text-slate-900" />
+                                    <input type="text" v-model="route.routeName" placeholder="Route Path" class="px-2 py-1 border border-slate-100 rounded text-[10px] font-bold outline-none text-slate-900 uppercase" />
+                                </div>
+                                <div class="grid grid-cols-4 gap-1.5">
+                                    <input type="time" v-model="route.etd" @input="updateRouteDurations(index)" class="px-1 py-1 border border-slate-50 rounded text-[9px] font-bold text-center text-slate-900" />
+                                    <input type="time" v-model="route.eta" @input="updateRouteDurations(index)" class="px-1 py-1 border border-slate-50 rounded text-[9px] font-bold text-center text-slate-900" />
+                                    <div class="bg-slate-50 rounded border border-slate-100 text-center py-1 flex items-center justify-center font-bold text-[9px] text-slate-500">{{ route.flightHours }}</div>
+                                    <div class="bg-indigo-50 rounded border border-indigo-100 text-center py-1 flex items-center justify-center font-bold text-[9px] text-indigo-600">{{ route.matrixHours }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div>
+                            <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 text-center sm:text-left leading-none">Mission Std</p>
+                            <p class="font-bold text-xs tracking-tight text-center sm:text-left">{{ currentTotalStd }}</p>
+                        </div>
+                        <div class="w-px h-6 bg-slate-700 hidden sm:block"></div>
+                        <div>
+                            <p class="text-[8px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5 text-center sm:text-left leading-none">Mission Mat</p>
+                            <p class="font-bold text-xs tracking-tight text-indigo-400 text-center sm:text-left">{{ currentTotalMatrix }}</p>
+                        </div>
+                    </div>
+                    <button @click="handleSave" class="bg-indigo-600 hover:bg-indigo-700 px-5 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all shadow-lg active:scale-95 uppercase tracking-wider text-white">
+                        <i v-if="isSyncing" data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i>
+                        <i v-else data-lucide="save" class="w-3.5 h-3.5"></i> Commit Log
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NOTIFICATION -->
+        <div v-if="notification" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-6 py-2.5 rounded-full shadow-xl flex items-center gap-3 animate-slide-in-up border no-print" :class="notification.type === 'error' ? 'bg-red-50 text-red-900 border-red-100' : 'bg-slate-900 text-white border-slate-800'">
+            <i :data-lucide="notification.type === 'error' ? 'alert-circle' : 'check-circle-2'" class="w-4 h-4" :class="notification.type === 'error' ? 'text-red-500' : 'text-indigo-400'"></i>
+            <span class="font-bold text-[10px] uppercase tracking-wider">{{ notification.msg }}</span>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, nextTick, onMounted, watch } = Vue;
+
+        createApp({
+            setup() {
+                const aircraftTypes = ["Gulfstream IV SP", "B350i King Air", "NC212-200", "Bell 412 EP", "Agusta 109S Grand"];
+                const registrations = ["PK-TWY", "PK-TWX", "PK-TWW", "PK-TWV", "PK-TWZ"];
+
+                const logs = ref([
+                    { 
+                        id: 1, 
+                        charterBy: 'PT. Dirgantara Jaya', 
+                        aircraftType: 'Gulfstream IV SP',
+                        registration: 'PK-TWY',
+                        totalHours: '04:30', 
+                        totalMatrix: '04:50',
+                        timestamp: new Date().toISOString(),
+                        routes: [
+                            { id: 101, date: '2023-10-25', routeName: 'HLP - SUB', etd: '08:00', eta: '09:30', flightHours: '01:30', matrixHours: '01:50' },
+                            { id: 102, date: '2023-10-25', routeName: 'SUB - DPS', etd: '10:30', eta: '11:30', flightHours: '01:00', matrixHours: '01:00' },
+                            { id: 103, date: '2023-10-25', routeName: 'DPS - HLP', etd: '13:00', eta: '15:00', flightHours: '02:00', matrixHours: '02:00' }
+                        ]
+                    }
+                ]);
+
+                const searchQuery = ref("");
+                const isFormOpen = ref(false);
+                const isSingleRouteEditOpen = ref(false);
+                const selectedLog = ref(null);
+                const editingId = ref(null);
+                const isSyncing = ref(false);
+                const notification = ref(null);
+
+                const formData = ref({
+                    charterBy: '',
+                    aircraftType: '',
+                    registration: '',
+                    routes: []
+                });
+
+                const activeRouteIndex = ref(null);
+                const singleRouteData = ref(null);
+
+                // HELPERS
+                const convertToMatrix = (durationStr) => {
+                    if (!durationStr || durationStr === "00:00") return "00:00";
+                    const [h, m] = durationStr.split(':').map(Number);
+                    const matrixMin = Math.round((m / 60) * 100);
+                    return `${String(h).padStart(2, '0')}:${String(matrixMin).padStart(2, '0')}`;
+                };
+
+                const calculateDuration = (etd, eta) => {
+                    if (!etd || !eta) return "00:00";
+                    const [h1, m1] = etd.split(':').map(Number);
+                    const [h2, m2] = eta.split(':').map(Number);
+                    let totalMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
+                    if (totalMinutes < 0) totalMinutes += 24 * 60;
+                    const hours = Math.floor(totalMinutes / 60);
+                    const mins = totalMinutes % 60;
+                    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+                };
+
+                const sumTotalHours = (routes) => {
+                    let totalMins = 0;
+                    routes.forEach(r => {
+                        const [h, m] = r.flightHours.split(':').map(Number);
+                        totalMins += (h * 60 + m);
+                    });
+                    const h = Math.floor(totalMins / 60);
+                    const m = totalMins % 60;
+                    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                };
+
+                const showNotify = (msg, type = 'success') => {
+                    notification.value = { msg, type };
+                    nextTick(() => lucide.createIcons());
+                    setTimeout(() => notification.value = null, 3000);
+                };
+
+                const formatDate = (dateStr) => {
+                    if (!dateStr) return "-";
+                    return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' });
+                };
+
+                // COMPUTED
+                const filteredLogs = computed(() => {
+                    const query = searchQuery.value.toLowerCase();
+                    return logs.value.filter(l => 
+                        l.charterBy.toLowerCase().includes(query) ||
+                        (l.aircraftType && l.aircraftType.toLowerCase().includes(query)) ||
+                        (l.registration && l.registration.toLowerCase().includes(query))
+                    );
+                });
+
+                const globalTotalStd = computed(() => sumTotalHours(logs.value.flatMap(l => l.routes)));
+                const globalTotalMatrix = computed(() => convertToMatrix(globalTotalStd.value));
+                const totalLegs = computed(() => logs.value.reduce((acc, curr) => acc + curr.routes.length, 0));
+
+                const currentTotalStd = computed(() => sumTotalHours(formData.value.routes));
+                const currentTotalMatrix = computed(() => convertToMatrix(currentTotalStd.value));
+
+                // ACTIONS
+                const openNewForm = () => {
+                    editingId.value = null;
+                    formData.value = {
+                        charterBy: '',
+                        aircraftType: '',
+                        registration: '',
+                        routes: [{ id: Date.now(), date: new Date().toISOString().split('T')[0], routeName: '', etd: '', eta: '', flightHours: '00:00', matrixHours: '00:00' }]
+                    };
+                    isFormOpen.value = true;
+                    nextTick(() => lucide.createIcons());
+                };
+
+                const handleAddRoute = () => {
+                    formData.value.routes.push({ id: Date.now(), date: new Date().toISOString().split('T')[0], routeName: '', etd: '', eta: '', flightHours: '00:00', matrixHours: '00:00' });
+                    nextTick(() => lucide.createIcons());
+                };
+
+                const handleRemoveRoute = (id) => {
+                    formData.value.routes = formData.value.routes.filter(r => r.id !== id);
+                };
+
+                const updateRouteDurations = (index) => {
+                    const r = formData.value.routes[index];
+                    r.flightHours = calculateDuration(r.etd, r.eta);
+                    r.matrixHours = convertToMatrix(r.flightHours);
+                };
+
+                const handleSave = async () => {
+                    if (!formData.value.charterBy) {
+                        showNotify("Nama Pencharter wajib diisi", "error");
+                        return;
+                    }
+                    isSyncing.value = true;
+                    const stdTotal = sumTotalHours(formData.value.routes);
+                    const newEntry = {
+                        ...formData.value,
+                        id: editingId.value || Date.now(),
+                        totalHours: stdTotal,
+                        totalMatrix: convertToMatrix(stdTotal),
+                        timestamp: new Date().toISOString(),
+                        routes: [...formData.value.routes]
+                    };
+
+                    setTimeout(() => {
+                        if (editingId.value) {
+                            const idx = logs.value.findIndex(l => l.id === editingId.value);
+                            logs.value[idx] = newEntry;
+                            showNotify("Data diperbarui");
+                        } else {
+                            logs.value.unshift(newEntry);
+                            showNotify("Data disimpan");
+                        }
+                        isFormOpen.value = false;
+                        isSyncing.value = false;
+                        nextTick(() => lucide.createIcons());
+                    }, 500);
+                };
+
+                const startFullEdit = () => {
+                    editingId.value = selectedLog.value.id;
+                    formData.value = {
+                        ...selectedLog.value,
+                        routes: selectedLog.value.routes.map(r => ({ ...r }))
+                    };
+                    selectedLog.value = null;
+                    isFormOpen.value = true;
+                    nextTick(() => lucide.createIcons());
+                };
+
+                const handleDuplicate = (log) => {
+                    const duplicated = {
+                        ...log,
+                        id: Date.now(),
+                        charterBy: `${log.charterBy} (Copy)`,
+                        timestamp: new Date().toISOString(),
+                        routes: log.routes.map(r => ({ ...r, id: Date.now() + Math.random() }))
+                    };
+                    logs.value.unshift(duplicated);
+                    selectedLog.value = null;
+                    showNotify("Duplikasi berhasil");
+                    nextTick(() => lucide.createIcons());
+                };
+
+                const handleDelete = (id) => {
+                    logs.value = logs.value.filter(l => l.id !== id);
+                    selectedLog.value = null;
+                    showNotify("Data dihapus");
+                    nextTick(() => lucide.createIcons());
+                };
+
+                const startSingleRouteEdit = (index) => {
+                    activeRouteIndex.value = index;
+                    singleRouteData.value = { ...selectedLog.value.routes[index] };
+                    isSingleRouteEditOpen.value = true;
+                    nextTick(() => lucide.createIcons());
+                };
+
+                const updateSingleRouteDurations = () => {
+                    singleRouteData.value.flightHours = calculateDuration(singleRouteData.value.etd, singleRouteData.value.eta);
+                    singleRouteData.value.matrixHours = convertToMatrix(singleRouteData.value.flightHours);
+                };
+
+                const saveSingleRoute = () => {
+                    const logIdx = logs.value.findIndex(l => l.id === selectedLog.value.id);
+                    logs.value[logIdx].routes[activeRouteIndex.value] = { ...singleRouteData.value };
+                    
+                    const newStdTotal = sumTotalHours(logs.value[logIdx].routes);
+                    logs.value[logIdx].totalHours = newStdTotal;
+                    logs.value[logIdx].totalMatrix = convertToMatrix(newStdTotal);
+                    
+                    selectedLog.value = { ...logs.value[logIdx] };
+                    isSingleRouteEditOpen.value = false;
+                    showNotify("Rute diperbarui");
+                };
+
+                const handlePrint = () => {
+                    window.print();
+                };
+
+                onMounted(() => {
+                    lucide.createIcons();
+                });
+
+                watch([isFormOpen, isSingleRouteEditOpen, selectedLog, notification], () => {
+                    nextTick(() => lucide.createIcons());
+                });
+
+                return {
+                    aircraftTypes, registrations, logs, searchQuery, isFormOpen, isSingleRouteEditOpen,
+                    selectedLog, editingId, isSyncing, notification, formData, activeRouteIndex, singleRouteData,
+                    filteredLogs, globalTotalStd, globalTotalMatrix, totalLegs, currentTotalStd, currentTotalMatrix,
+                    openNewForm, handleAddRoute, handleRemoveRoute, updateRouteDurations, handleSave,
+                    startFullEdit, handleDuplicate, handleDelete, startSingleRouteEdit, updateSingleRouteDurations,
+                    saveSingleRoute, handlePrint, formatDate
+                };
+            }
+        }).mount('#app');
+    </script>
+
+    <style>
+        .animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .animate-slide-in-up { animation: slide-in-up 0.3s ease-out; }
+        @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slide-in-up { from { transform: translate(-50%, 40px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+    </style>
+</body>
+</html>
