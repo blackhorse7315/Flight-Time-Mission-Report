@@ -55,6 +55,9 @@
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
         }
+
+        .animate-slide-in-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 text-sm">
@@ -158,17 +161,17 @@
             </div>
         </main>
 
-        <!-- PRINT TEMPLATE (Kerapihan ditingkatkan untuk A4) -->
+        <!-- PRINT TEMPLATE -->
         <div v-if="selectedLog" id="print-area" class="hidden bg-white p-10 text-slate-900 font-sans">
             <div class="text-center mb-8">
-                <h1 class="text-2xl font-black uppercase tracking-widest border-b-2 border-slate-900 pb-2 mb-4 text-center">FLIGHT RECORD</h1>
+                <h1 class="text-2xl font-black uppercase tracking-widest border-b-2 border-slate-900 pb-2 mb-4 text-center text-center">FLIGHT RECORD</h1>
                 <div class="flex justify-between items-end text-left">
                     <div>
-                        <p class="text-[10px] font-bold uppercase text-slate-500 mb-1">Aircraft Info</p>
+                        <p class="text-[10px] font-bold uppercase text-slate-500 mb-1 text-center sm:text-left">Aircraft Info</p>
                         <p class="text-sm font-black">{{ selectedLog.aircraftType }} / {{ selectedLog.registration }}</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-[10px] font-bold uppercase text-slate-500 mb-1">Chartered By</p>
+                        <p class="text-[10px] font-bold uppercase text-slate-500 mb-1 text-center sm:text-right">Chartered By</p>
                         <p class="text-sm font-black">{{ selectedLog.charterBy }}</p>
                     </div>
                 </div>
@@ -188,7 +191,7 @@
                 <tbody class="divide-y divide-slate-200">
                     <tr v-for="(route, idx) in selectedLog.routes" :key="idx" class="border-b border-slate-100">
                         <td class="p-2 text-center text-[11px]">{{ idx + 1 }}</td>
-                        <td class="p-2 text-center text-[11px]">{{ formatDate(route.date) }}</td>
+                        <td class="p-2 text-center text-[11px]">{{ formatDatePrint(route.date) }}</td>
                         <td class="p-2 text-center text-[11px] font-bold uppercase whitespace-nowrap">{{ route.routeName }}</td>
                         <td class="p-2 text-center text-[11px] font-mono whitespace-nowrap">{{ route.etd }} — {{ route.eta }}</td>
                         <td class="p-2 text-center text-[11px] font-bold">{{ route.flightHours }}</td>
@@ -259,7 +262,7 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <tr v-for="(route, idx) in selectedLog.routes" :key="idx" @click="startSingleRouteEdit(idx)" class="hover:bg-indigo-50/40 cursor-pointer transition-colors group/row">
+                                <tr v-for="(route, idx) in selectedLog.routes" :key="route.id" @click="startSingleRouteEdit(idx)" class="hover:bg-indigo-50/40 cursor-pointer transition-colors group/row">
                                     <td class="px-4 py-2.5 text-slate-500 text-center whitespace-nowrap">
                                         {{ formatDate(route.date) }}
                                     </td>
@@ -319,7 +322,12 @@
                     </div>
                     <div>
                         <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1 ml-1">Route Connection</label>
-                        <input type="text" v-model="singleRouteData.routeName" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-slate-900" />
+                        <input 
+                            type="text" 
+                            v-model="singleRouteData.routeName" 
+                            @input="singleRouteData.routeName = singleRouteData.routeName.toUpperCase()"
+                            class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-slate-900 uppercase" 
+                        />
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -390,16 +398,44 @@
                     <div class="space-y-4">
                         <div class="flex justify-between items-center border-b border-slate-100 pb-1">
                             <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Operational manifest</h4>
-                            <button @click="handleAddRoute" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors uppercase tracking-tighter">Add Leg</button>
+                            <div class="flex gap-2">
+                                <button @click="showBulkInput = !showBulkInput" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors uppercase tracking-tighter flex items-center gap-1">
+                                    <i data-lucide="file-text" class="w-3 h-3"></i> Smart Parse Leg
+                                </button>
+                                <button @click="handleAddRoute" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md hover:bg-indigo-100 transition-colors uppercase tracking-tighter">Add Leg</button>
+                            </div>
                         </div>
+
+                        <!-- BULK INPUT AREA -->
+                        <div v-if="showBulkInput" class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 animate-zoom-in">
+                            <label class="text-[9px] font-black text-indigo-600 uppercase tracking-widest block mb-2">Paste Bulk Legs (Max 50 Rows)</label>
+                            <textarea 
+                                v-model="bulkInputText"
+                                rows="5"
+                                placeholder="HLP-TWNC | April 20, 2026 | 05:20 | 06:55 | 01:35 | 1,58"
+                                class="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-[10px] shadow-sm custom-scrollbar"
+                            ></textarea>
+                            <div class="flex justify-end gap-2 mt-2">
+                                <button @click="showBulkInput = false; bulkInputText = ''" class="text-[10px] font-bold text-slate-500 px-3 py-1 hover:bg-slate-100 rounded-lg">Cancel</button>
+                                <button @click="handleBulkParse" class="text-[10px] font-bold bg-indigo-600 text-white px-3 py-1 hover:bg-indigo-700 rounded-lg shadow-sm">Parse & Add Data</button>
+                            </div>
+                        </div>
+
+                        <!-- ROUTE LIST -->
                         <div class="space-y-3">
                             <div v-for="(route, index) in formData.routes" :key="route.id" class="bg-white border border-slate-200 rounded-xl p-3 relative group/route shadow-sm">
-                                <button v-if="formData.routes.length > 1" @click="handleRemoveRoute(route.id)" class="absolute -top-2 -right-2 bg-white text-slate-300 hover:text-red-500 p-1.5 rounded-full shadow-md border border-slate-100 transition-all opacity-0 group-hover/route:opacity-100 z-10">
+                                <button v-if="formData.routes.length > 1" @click="handleRemoveRoute(route.id)" class="absolute -top-2 -right-2 bg-white text-slate-300 hover:text-red-500 p-1.5 rounded-full shadow-md border border-slate-100 transition-all opacity-0 group-hover/route:opacity-100 z-10 active:scale-90">
                                     <i data-lucide="trash-2" class="w-3 h-3"></i>
                                 </button>
                                 <div class="grid grid-cols-2 gap-2 mb-2">
                                     <input type="date" v-model="route.date" class="px-2 py-1 border border-slate-100 rounded text-[10px] font-bold outline-none text-slate-900" />
-                                    <input type="text" v-model="route.routeName" placeholder="Route Path" class="px-2 py-1 border border-slate-100 rounded text-[10px] font-bold outline-none text-slate-900 uppercase" />
+                                    <input 
+                                        type="text" 
+                                        v-model="route.routeName" 
+                                        @input="route.routeName = route.routeName.toUpperCase()"
+                                        placeholder="Route Path" 
+                                        class="px-2 py-1 border border-slate-100 rounded text-[10px] font-bold outline-none text-slate-900 uppercase" 
+                                    />
                                 </div>
                                 <div class="grid grid-cols-4 gap-1.5">
                                     <input type="time" v-model="route.etd" @input="updateRouteDurations(index)" class="px-1 py-1 border border-slate-50 rounded text-[9px] font-bold text-center text-slate-900" />
@@ -471,6 +507,8 @@
                 const editingId = ref(null);
                 const isSyncing = ref(false);
                 const notification = ref(null);
+                const showBulkInput = ref(false);
+                const bulkInputText = ref("");
 
                 const formData = ref({
                     charterBy: '',
@@ -504,6 +542,7 @@
                 const sumTotalHours = (routes) => {
                     let totalMins = 0;
                     routes.forEach(r => {
+                        if (!r.flightHours) return;
                         const [h, m] = r.flightHours.split(':').map(Number);
                         totalMins += (h * 60 + m);
                     });
@@ -520,7 +559,19 @@
 
                 const formatDate = (dateStr) => {
                     if (!dateStr) return "-";
+                    return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' });
+                };
+
+                const formatDatePrint = (dateStr) => {
+                    if (!dateStr) return "-";
                     return new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                };
+
+                const sortRoutes = (routes) => {
+                    return [...routes].sort((a, b) => {
+                        if (a.date !== b.date) return a.date.localeCompare(b.date);
+                        return a.id - b.id;
+                    });
                 };
 
                 // COMPUTED
@@ -543,6 +594,8 @@
                 // ACTIONS
                 const openNewForm = () => {
                     editingId.value = null;
+                    showBulkInput.value = false;
+                    bulkInputText.value = "";
                     formData.value = {
                         charterBy: '',
                         aircraftType: '',
@@ -554,8 +607,75 @@
                 };
 
                 const handleAddRoute = () => {
-                    formData.value.routes.push({ id: Date.now(), date: new Date().toISOString().split('T')[0], routeName: '', etd: '', eta: '', flightHours: '00:00', matrixHours: '00:00' });
+                    formData.value.routes.unshift({ 
+                        id: Date.now(), 
+                        date: new Date().toISOString().split('T')[0], 
+                        routeName: '', 
+                        etd: '', 
+                        eta: '', 
+                        flightHours: '00:00', 
+                        matrixHours: '00:00' 
+                    });
                     nextTick(() => lucide.createIcons());
+                };
+
+                const handleBulkParse = () => {
+                    if (!bulkInputText.value.trim()) return;
+
+                    const monthMap = {
+                        january: '01', february: '02', march: '03', april: '04', may: '05', june: '06',
+                        july: '07', august: '08', september: '09', october: '10', november: '11', december: '12'
+                    };
+
+                    const lines = bulkInputText.value.split('\n').filter(l => l.trim().includes('|')).slice(0, 50);
+                    const parsedRoutes = [];
+
+                    lines.forEach((line, index) => {
+                        const parts = line.split('|').map(p => p.trim());
+                        if (parts.length >= 6) {
+                            const [rawRoute, rawDate, rawEtd, rawEta, rawStd, rawMat] = parts;
+                            
+                            // Parse Date (April 20, 2026 -> 2026-04-20)
+                            let finalDate = new Date().toISOString().split('T')[0];
+                            const dateMatch = rawDate.match(/(\w+) (\d+), (\d+)/);
+                            if (dateMatch) {
+                                const m = monthMap[dateMatch[1].toLowerCase()];
+                                const d = dateMatch[2].padStart(2, '0');
+                                const y = dateMatch[3];
+                                if (m) finalDate = `${y}-${m}-${d}`;
+                            }
+
+                            // Parse Matrix (1,58 -> 01:58)
+                            const matParts = rawMat.replace(',', ':').split(':');
+                            const matFinal = matParts.length === 2 
+                                ? `${matParts[0].padStart(2, '0')}:${matParts[1].padStart(2, '0')}`
+                                : (rawMat.includes(',') || rawMat.includes('.') ? `0${rawMat.replace(',', ':')}` : '00:00');
+
+                            parsedRoutes.push({
+                                id: Date.now() + index,
+                                date: finalDate,
+                                routeName: rawRoute.toUpperCase(),
+                                etd: rawEtd,
+                                eta: rawEta,
+                                flightHours: rawStd,
+                                matrixHours: matFinal
+                            });
+                        }
+                    });
+
+                    if (parsedRoutes.length > 0) {
+                        // Jika rute pertama masih kosong, hapus dulu
+                        if (formData.value.routes.length === 1 && !formData.value.routes[0].routeName) {
+                            formData.value.routes = [];
+                        }
+                        // Masukkan di atas
+                        formData.value.routes = [...parsedRoutes, ...formData.value.routes];
+                        showBulkInput.value = false;
+                        bulkInputText.value = "";
+                        showNotify(`${parsedRoutes.length} leg berhasil diproses`);
+                    } else {
+                        showNotify("Format data tidak valid", "error");
+                    }
                 };
 
                 const handleRemoveRoute = (id) => {
@@ -574,14 +694,16 @@
                         return;
                     }
                     isSyncing.value = true;
-                    const stdTotal = sumTotalHours(formData.value.routes);
+                    const sorted = sortRoutes(formData.value.routes);
+                    const stdTotal = sumTotalHours(sorted);
+
                     const newEntry = {
                         ...formData.value,
                         id: editingId.value || Date.now(),
                         totalHours: stdTotal,
                         totalMatrix: convertToMatrix(stdTotal),
                         timestamp: new Date().toISOString(),
-                        routes: [...formData.value.routes]
+                        routes: sorted
                     };
 
                     setTimeout(() => {
@@ -646,11 +768,10 @@
                 const saveSingleRoute = () => {
                     const logIdx = logs.value.findIndex(l => l.id === selectedLog.value.id);
                     logs.value[logIdx].routes[activeRouteIndex.value] = { ...singleRouteData.value };
-                    
+                    logs.value[logIdx].routes = sortRoutes(logs.value[logIdx].routes);
                     const newStdTotal = sumTotalHours(logs.value[logIdx].routes);
                     logs.value[logIdx].totalHours = newStdTotal;
                     logs.value[logIdx].totalMatrix = convertToMatrix(newStdTotal);
-                    
                     selectedLog.value = { ...logs.value[logIdx] };
                     isSingleRouteEditOpen.value = false;
                     showNotify("Rute diperbarui");
@@ -664,7 +785,7 @@
                     lucide.createIcons();
                 });
 
-                watch([isFormOpen, isSingleRouteEditOpen, selectedLog, notification], () => {
+                watch([isFormOpen, isSingleRouteEditOpen, selectedLog, notification, showBulkInput], () => {
                     nextTick(() => lucide.createIcons());
                 });
 
@@ -674,17 +795,15 @@
                     filteredLogs, globalTotalStd, globalTotalMatrix, totalLegs, currentTotalStd, currentTotalMatrix,
                     openNewForm, handleAddRoute, handleRemoveRoute, updateRouteDurations, handleSave,
                     startFullEdit, handleDuplicate, handleDelete, startSingleRouteEdit, updateSingleRouteDurations,
-                    saveSingleRoute, handlePrint, formatDate
+                    saveSingleRoute, handlePrint, formatDate, formatDatePrint, showBulkInput, bulkInputText, handleBulkParse
                 };
             }
         }).mount('#app');
     </script>
 
     <style>
-        .animate-slide-in-right { animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        .animate-slide-in-up { animation: slide-in-up 0.3s ease-out; }
-        @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
-        @keyframes slide-in-up { from { transform: translate(-50%, 40px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+        .animate-slide-in-up { animation: slideInUp 0.3s ease-out; }
+        @keyframes slideInUp { from { transform: translate(-50%, 40px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
     </style>
 </body>
 </html>
