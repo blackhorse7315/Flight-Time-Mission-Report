@@ -1,5 +1,5 @@
 <!-- 
-  DATABASE URL: 
+  DATABASE URL TERPASANG: 
   https://script.google.com/macros/s/AKfycbwK08rV_NCd3Fiwfy8dMyIvUswiXqfv6zfPl5F7tVFwMzzoyYtevz2naWGTW6n52IUbRg/exec
 -->
 
@@ -24,6 +24,7 @@
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
             #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+            .no-print { display: none !important; }
         }
         .animate-zoom-in { animation: zoomIn 0.2s ease-out; }
         @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
@@ -39,10 +40,9 @@
                 <div class="flex items-center gap-2">
                     <span v-once><i data-lucide="plane" class="text-indigo-600 w-5 h-5"></i></span>
                     <h1 class="font-bold text-slate-900 tracking-tight">FlightLog <span class="text-indigo-600 font-black">Core</span></h1>
-                    <div class="ml-2 px-2 py-0.5 text-[10px] font-bold rounded-full border flex items-center gap-1"
-                         :class="logs.length > 0 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'">
-                        <span class="w-1.5 h-1.5 rounded-full" :class="logs.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'"></span>
-                        {{ logs.length > 0 ? 'CONNECTED' : 'STANDBY' }}
+                    <div class="ml-2 px-2 py-0.5 text-[10px] font-bold rounded-full border flex items-center gap-1 bg-emerald-50 text-emerald-600 border-emerald-100">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        SYNC ACTIVE
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -60,6 +60,7 @@
 
         <!-- MAIN CONTENT -->
         <main class="max-w-6xl mx-auto px-4 py-6 no-print">
+            <!-- Statistik Utama -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 text-center">
                 <div class="bg-white p-4 rounded-xl border shadow-sm">
                     <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Std / Matrix</p>
@@ -78,10 +79,10 @@
             <!-- Database Logs Table -->
             <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
                 <div class="p-4 border-b flex flex-col md:flex-row justify-between items-center gap-4 text-center">
-                    <h3 class="font-bold text-slate-800 uppercase tracking-tight">Database Logs</h3>
+                    <h3 class="font-bold text-slate-800 uppercase tracking-tight">Database Operational Logs</h3>
                     <div class="relative w-full md:w-64">
                         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" v-once><i data-lucide="search" class="w-3.5 h-3.5"></i></span>
-                        <input v-model="searchQuery" type="text" placeholder="Search logs..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500" />
+                        <input v-model="searchQuery" type="text" placeholder="Search logs..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-indigo-500" />
                     </div>
                 </div>
 
@@ -97,32 +98,38 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-50">
-                            <tr v-for="log in filteredLogs" :key="log.id" @click="selectedLog = log" class="group hover:bg-slate-50 cursor-pointer">
+                            <tr v-for="log in filteredLogs" :key="log.id" @click="selectedLog = log" class="group hover:bg-slate-50 cursor-pointer transition-colors">
                                 <td class="px-4 py-3">
                                     <div class="flex flex-col items-center">
-                                        <span class="font-bold text-slate-800 uppercase">{{ log.charterBy }}</span>
+                                        <span class="font-bold text-slate-800 group-hover:text-indigo-600 uppercase">{{ log.charterBy }}</span>
                                         <span class="text-[10px] text-slate-400 tracking-wider">{{ log.aircraftType }}</span>
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 uppercase font-bold text-xs">{{ log.registration }}</td>
                                 <td class="px-4 py-3 text-slate-500 font-medium">{{ log.routes.length }} Lgs</td>
-                                <td class="px-4 py-3"><span class="font-bold">{{ formatDurationDisplay(log.totalHours) }}</span> <span class="text-indigo-500 ml-1 text-xs">/ {{ formatDurationDisplay(log.totalMatrix) }}</span></td>
+                                <td class="px-4 py-3">
+                                    <span class="font-bold">{{ formatDurationDisplay(log.totalHours) }}</span> 
+                                    <span class="text-indigo-500 ml-1 text-xs">/ {{ formatDurationDisplay(log.totalMatrix) }}</span>
+                                </td>
                                 <td class="px-4 py-3"><span v-once><i data-lucide="chevron-right" class="text-slate-300 group-hover:text-indigo-500 inline w-4 h-4"></i></span></td>
                             </tr>
-                            <tr v-if="!loading && filteredLogs.length === 0"><td colspan="5" class="p-10 italic text-slate-400">Database is empty or connecting...</td></tr>
+                            <tr v-if="!loading && filteredLogs.length === 0"><td colspan="5" class="p-10 italic text-slate-400 text-center">Database is empty or connecting...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
         </main>
 
-        <!-- MODAL DETAIL -->
-        <div v-if="selectedLog" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm no-print">
+        <!-- MODAL DETAIL & OPS -->
+        <div v-if="selectedLog && !isSingleRouteEditOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm no-print">
             <div class="relative bg-white w-full max-w-4xl max-h-[85vh] flex flex-col rounded-xl shadow-2xl border animate-zoom-in text-slate-900">
-                <div class="p-4 border-b flex justify-between items-center shrink-0">
+                <div class="p-4 border-b flex justify-between items-center shrink-0 text-center">
                     <div class="flex items-center gap-3">
                         <div class="bg-indigo-600 w-10 h-10 rounded-lg text-white flex items-center justify-center shadow-lg shadow-indigo-100" v-once><i data-lucide="plane" class="w-5 h-5"></i></div>
-                        <div><h3 class="font-black text-slate-900 uppercase leading-tight">{{ selectedLog.charterBy }}</h3><p class="text-[10px] font-bold text-slate-400 uppercase">{{ selectedLog.aircraftType }} • {{ selectedLog.registration }}</p></div>
+                        <div class="text-left">
+                            <h3 class="font-black text-slate-900 uppercase leading-tight">{{ selectedLog.charterBy }}</h3>
+                            <p class="text-[10px] font-bold text-slate-400 uppercase">{{ selectedLog.aircraftType }} • {{ selectedLog.registration }}</p>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <button @click="handlePrint" class="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-colors flex items-center gap-2 text-xs font-bold px-3 border border-slate-200"><span v-once><i data-lucide="printer" class="w-4 h-4"></i></span> Print PDF</button>
@@ -139,10 +146,11 @@
                                 <th class="px-4 py-2 text-[9px] font-bold text-slate-500 uppercase">Duration (S/M)</th>
                             </tr></thead>
                             <tbody class="divide-y divide-slate-100">
-                                <tr v-for="route in selectedLog.routes" :key="route.id">
+                                <!-- FITUR EDIT TIAP BARIS: Klik rute untuk edit cepat -->
+                                <tr v-for="(route, idx) in selectedLog.routes" :key="route.id" @click="startSingleRouteEdit(idx)" class="hover:bg-indigo-50/40 cursor-pointer transition-colors group/row">
                                     <td class="px-4 py-2.5 text-slate-500">{{ formatDate(route.date) }}</td>
                                     <td class="px-4 py-2.5 font-bold text-slate-800 uppercase">{{ route.routeName }}</td>
-                                    <td class="px-4 py-2.5 text-center text-slate-400 font-mono text-center">{{ route.etd }} — {{ route.eta }}</td>
+                                    <td class="px-4 py-2.5 text-center text-slate-400 font-mono">{{ route.etd }} — {{ route.eta }}</td>
                                     <td class="px-4 py-2.5 text-center"><span class="font-bold">{{ formatDurationDisplay(route.flightHours) }}</span> <span class="text-indigo-600 font-bold ml-1">/ {{ formatDurationDisplay(route.matrixHours) }}</span></td>
                                 </tr>
                             </tbody>
@@ -158,7 +166,130 @@
             </div>
         </div>
 
-        <!-- PRINT AREA -->
+        <!-- POPUP EDIT SINGLE ROUTE (EDIT TIAP BARIS) -->
+        <div v-if="isSingleRouteEditOpen && singleRouteData" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm no-print">
+            <div class="bg-white w-full max-w-sm rounded-xl shadow-2xl border border-slate-200 overflow-hidden animate-zoom-in text-slate-900">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                    <h3 class="font-bold text-sm">Modify Leg Data</h3>
+                    <button @click="isSingleRouteEditOpen = false" class="text-slate-400 hover:text-slate-600 transition-colors"><span v-once><i data-lucide="x" class="w-4.5 h-4.5"></i></span></button>
+                </div>
+                <div class="p-4 space-y-4 text-center">
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Leg Date</label>
+                        <input type="date" v-model="singleRouteData.date" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-center" />
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Route Path</label>
+                        <input type="text" v-model="singleRouteData.routeName" @input="singleRouteData.routeName = singleRouteData.routeName.toUpperCase()" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-center uppercase" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">ETD (HH:MM)</label>
+                            <input type="text" v-model="singleRouteData.etd" @input="updateSingleRouteDurations" placeholder="HH:MM" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-center uppercase" />
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">ETA (HH:MM)</label>
+                            <input type="text" v-model="singleRouteData.eta" @input="updateSingleRouteDurations" placeholder="HH:MM" class="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:border-indigo-500 transition-all outline-none text-xs font-bold text-center uppercase" />
+                        </div>
+                    </div>
+                    <div class="flex gap-2 p-2 bg-slate-50 rounded-lg text-center border border-slate-100">
+                        <div class="flex-1 border-r border-slate-200">
+                            <p class="text-[8px] font-black text-slate-400 uppercase leading-none mb-1">Std Dur</p>
+                            <p class="font-bold text-xs">{{ formatDurationDisplay(singleRouteData.flightHours) }}</p>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-[8px] font-black text-indigo-400 uppercase leading-none mb-1">Matrix</p>
+                            <p class="font-bold text-xs text-indigo-600">{{ formatDurationDisplay(singleRouteData.matrixHours) }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-50 flex gap-2 border-t border-slate-100">
+                    <button @click="isSingleRouteEditOpen = false" class="flex-1 py-1.5 text-slate-500 font-bold text-xs hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
+                    <button @click="saveSingleRoute" class="flex-[2] py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-xs shadow-sm transition-all uppercase tracking-wider">Update Leg</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FORM SLIDE-OVER (EDIT / NEW) -->
+        <div v-if="isFormOpen" class="fixed inset-0 z-[60] flex justify-end bg-slate-900/40 backdrop-blur-sm no-print">
+            <div class="absolute inset-0" @click="isFormOpen = false"></div>
+            <div class="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right border-l text-slate-900">
+                <div class="p-4 border-b flex justify-between items-center bg-white shrink-0 text-center">
+                    <div class="flex items-center gap-3">
+                         <div class="w-8 h-8 rounded-lg text-white flex items-center justify-center" :class="editingId ? 'bg-indigo-600' : 'bg-slate-900'">
+                             <span v-once><i :data-lucide="editingId ? 'edit-3' : 'plus'" class="w-4 h-4"></i></span>
+                        </div>
+                        <h3 class="font-black text-sm uppercase tracking-wider">{{ editingId ? 'Update Log' : 'New Log' }}</h3>
+                    </div>
+                    <button @click="isFormOpen = false" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><span v-once><i data-lucide="x" class="w-4.5 h-4.5"></i></span></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/30 custom-scrollbar">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-400 uppercase block mb-1 ml-1">Charterer</label>
+                            <input type="text" v-model="formData.charterBy" class="w-full px-3 py-2 bg-white border rounded-lg outline-none font-bold text-xs uppercase shadow-sm" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-400 uppercase block mb-1 ml-1 text-center">Aircraft Type</label>
+                                <input list="ac-types" v-model="formData.aircraftType" class="w-full px-3 py-2 border rounded-lg text-xs font-bold bg-white shadow-sm text-center" />
+                                <datalist id="ac-types">
+                                    <option v-for="t in aircraftTypes" :key="t" :value="t"></option>
+                                </datalist>
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-400 uppercase block mb-1 ml-1 text-center">Registration</label>
+                                <input list="ac-regs" v-model="formData.registration" class="w-full px-3 py-2 border rounded-lg text-xs font-bold uppercase bg-white shadow-sm text-center" />
+                                <datalist id="ac-regs">
+                                    <option v-for="r in registrations" :key="r" :value="r"></option>
+                                </datalist>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center border-b pb-1">
+                            <h4 class="text-[9px] font-black text-slate-400 uppercase">Operational Manifest</h4>
+                            <div class="flex gap-2">
+                                <button @click="showBulkInput = !showBulkInput" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded shadow-sm">Smart Parse</button>
+                                <button @click="handleAddRoute" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded shadow-sm">Add Leg</button>
+                            </div>
+                        </div>
+                        <div v-if="showBulkInput" class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 animate-zoom-in shadow-inner">
+                            <textarea v-model="bulkInputText" rows="4" placeholder="Route | Date | ETD | ETA | Std | Mat" class="w-full p-2 border rounded text-[10px] font-mono shadow-sm bg-white outline-none"></textarea>
+                            <button @click="handleBulkParse" class="mt-2 w-full bg-indigo-600 text-white font-bold text-[10px] py-1.5 rounded shadow-md active:scale-95 transition-all">Parse Data</button>
+                        </div>
+                        <div class="space-y-3">
+                            <div v-for="(route, index) in formData.routes" :key="route.id" class="bg-white border border-slate-200 rounded-xl p-3 relative shadow-sm text-center">
+                                <button v-if="formData.routes.length > 1" @click="handleRemoveRoute(route.id)" class="absolute -top-2 -right-2 bg-white text-red-500 p-1 rounded-full shadow border active:scale-90"><span v-once><i data-lucide="trash-2" class="w-3 h-3"></i></span></button>
+                                <div class="grid grid-cols-2 gap-2 mb-2">
+                                    <input type="date" v-model="route.date" class="px-2 py-1 border rounded text-[10px] font-bold outline-none shadow-sm text-center" />
+                                    <input type="text" v-model="route.routeName" @input="route.routeName = route.routeName.toUpperCase()" placeholder="ROUTE PATH" class="px-2 py-1 border rounded text-[10px] font-bold uppercase outline-none shadow-sm text-center" />
+                                </div>
+                                <div class="grid grid-cols-4 gap-1.5 text-center">
+                                    <input type="text" v-model="route.etd" @input="updateDurations(index)" placeholder="HH:MM" class="px-1 py-1 border rounded text-[9px] font-bold text-center shadow-sm uppercase outline-none focus:border-indigo-400" />
+                                    <input type="text" v-model="route.eta" @input="updateDurations(index)" placeholder="HH:MM" class="px-1 py-1 border rounded text-[9px] font-bold text-center shadow-sm uppercase outline-none focus:border-indigo-400" />
+                                    <div class="bg-slate-50 border rounded text-[9px] py-1 font-bold text-slate-500 shadow-sm">{{ formatDurationDisplay(route.flightHours) }}</div>
+                                    <div class="bg-indigo-50 border border-indigo-100 rounded text-[9px] py-1 font-bold text-indigo-600 shadow-sm">{{ formatDurationDisplay(route.matrixHours) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-3">
+                        <div class="text-center"><p class="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Total Jam</p><p class="font-bold text-xs">{{ currentTotalStd }}</p></div>
+                        <div class="w-px h-6 bg-slate-700"></div>
+                        <div class="text-center"><p class="text-[8px] font-bold text-indigo-400 uppercase leading-none mb-0.5">Matrix</p><p class="font-bold text-xs text-indigo-400">{{ currentTotalMatrix }}</p></div>
+                    </div>
+                    <button @click="handleSave" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded-lg font-bold text-xs uppercase shadow-lg flex items-center gap-2 active:scale-95 transition-all">
+                        <span v-if="isSyncing" v-once><i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i></span>
+                        <span v-else v-once><i data-lucide="save" class="w-3.5 h-3.5"></i></span> {{ isSyncing ? 'Syncing...' : 'Commit Log' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRINT AREA (HIDDEN) -->
         <div v-if="selectedLog" id="print-area" class="hidden bg-white p-10 text-slate-900 font-sans text-center">
             <h1 class="text-2xl font-black uppercase border-b-2 border-slate-900 pb-2 mb-6">FLIGHT RECORD</h1>
             <div class="flex justify-between items-end text-left mb-6">
@@ -180,65 +311,6 @@
             </div>
         </div>
 
-        <!-- FORM MODAL -->
-        <div v-if="isFormOpen" class="fixed inset-0 z-[60] flex justify-end bg-slate-900/40 backdrop-blur-sm no-print">
-            <div class="absolute inset-0" @click="isFormOpen = false"></div>
-            <div class="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right border-l text-slate-900 text-center">
-                <div class="p-4 border-b flex justify-between items-center bg-white">
-                    <h3 class="font-black text-sm uppercase tracking-wider">{{ editingId ? 'Update Log' : 'New Log' }}</h3>
-                    <button @click="isFormOpen = false" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400"><span v-once><i data-lucide="x" class="w-4.5 h-4.5"></i></span></button>
-                </div>
-                <div class="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/30">
-                    <div class="space-y-4">
-                        <div><label class="text-[9px] font-bold text-slate-400 uppercase block mb-1">Charterer</label><input type="text" v-model="formData.charterBy" class="w-full px-3 py-2 bg-white border rounded-lg outline-none font-bold text-xs uppercase" /></div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div><label class="text-[9px] font-bold text-slate-400 uppercase block mb-1">Aircraft Type</label><input list="ac-types" v-model="formData.aircraftType" class="w-full px-3 py-2 border rounded-lg text-xs font-bold" /></div>
-                            <div><label class="text-[9px] font-bold text-slate-400 uppercase block mb-1">Registration</label><input list="ac-regs" v-model="formData.registration" class="w-full px-3 py-2 border rounded-lg text-xs font-bold uppercase" /></div>
-                        </div>
-                    </div>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center border-b pb-1">
-                            <h4 class="text-[9px] font-black text-slate-400 uppercase">Leg Manifest</h4>
-                            <div class="flex gap-2">
-                                <button @click="showBulkInput = !showBulkInput" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">Smart Parse</button>
-                                <button @click="handleAddRoute" class="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">Add Leg</button>
-                            </div>
-                        </div>
-                        <div v-if="showBulkInput" class="bg-indigo-50 p-3 rounded-lg border">
-                            <textarea v-model="bulkInputText" rows="4" placeholder="Route | Date | ETD | ETA | Std | Mat" class="w-full p-2 border rounded text-[10px] font-mono"></textarea>
-                            <button @click="handleBulkParse" class="mt-2 w-full bg-indigo-600 text-white font-bold text-[10px] py-1 rounded">Parse Data</button>
-                        </div>
-                        <div class="space-y-3">
-                            <div v-for="(route, index) in formData.routes" :key="route.id" class="bg-white border rounded-xl p-3 relative shadow-sm text-center">
-                                <button v-if="formData.routes.length > 1" @click="handleRemoveRoute(route.id)" class="absolute -top-2 -right-2 bg-white text-red-500 p-1 rounded-full shadow border"><span v-once><i data-lucide="trash-2" class="w-3 h-3"></i></span></button>
-                                <div class="grid grid-cols-2 gap-2 mb-2">
-                                    <input type="date" v-model="route.date" class="px-2 py-1 border rounded text-[10px] font-bold outline-none" />
-                                    <input type="text" v-model="route.routeName" @input="route.routeName = route.routeName.toUpperCase()" class="px-2 py-1 border rounded text-[10px] font-bold uppercase outline-none" />
-                                </div>
-                                <div class="grid grid-cols-4 gap-1.5">
-                                    <input type="time" v-model="route.etd" @input="updateDurations(index)" class="px-1 py-1 border rounded text-[9px] font-bold text-center" />
-                                    <input type="time" v-model="route.eta" @input="updateDurations(index)" class="px-1 py-1 border rounded text-[9px] font-bold text-center" />
-                                    <div class="bg-slate-50 border rounded text-[9px] py-1 font-bold text-slate-500">{{ formatDurationDisplay(route.flightHours) }}</div>
-                                    <div class="bg-indigo-50 border rounded text-[9px] py-1 font-bold text-indigo-600">{{ formatDurationDisplay(route.matrixHours) }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="p-4 bg-slate-900 text-white flex justify-between items-center shrink-0">
-                    <div class="flex items-center gap-3">
-                        <div><p class="text-[8px] font-bold text-slate-400 uppercase leading-none mb-0.5">Total Jam</p><p class="font-bold text-xs">{{ currentTotalStd }}</p></div>
-                        <div class="w-px h-6 bg-slate-700"></div>
-                        <div><p class="text-[8px] font-bold text-indigo-400 uppercase leading-none mb-0.5">Total Matrix</p><p class="font-bold text-xs text-indigo-400">{{ currentTotalMatrix }}</p></div>
-                    </div>
-                    <button @click="handleSave" class="bg-indigo-600 hover:bg-indigo-700 px-6 py-2 rounded-lg font-bold text-xs uppercase shadow-lg flex items-center gap-2">
-                        <span v-if="isSyncing" v-once><i data-lucide="refresh-cw" class="w-3.5 h-3.5 animate-spin"></i></span>
-                        <span v-else v-once><i data-lucide="save" class="w-3.5 h-3.5"></i></span> {{ isSyncing ? 'Syncing...' : 'Commit Log' }}
-                    </button>
-                </div>
-            </div>
-        </div>
-
         <!-- NOTIFICATION -->
         <div v-if="notification" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-6 py-2.5 rounded-full shadow-xl flex items-center gap-3 animate-slide-in-up border no-print" :class="notification.type === 'error' ? 'bg-red-50 text-red-900 border-red-100' : 'bg-slate-900 text-white border-slate-800'">
             <span v-once><i :data-lucide="notification.type === 'error' ? 'alert-circle' : 'check-circle-2'" class="w-4 h-4" :class="notification.type === 'error' ? 'text-red-500' : 'text-indigo-400'"></i></span>
@@ -254,6 +326,7 @@
                 const logs = ref([]);
                 const searchQuery = ref("");
                 const isFormOpen = ref(false);
+                const isSingleRouteEditOpen = ref(false);
                 const selectedLog = ref(null);
                 const editingId = ref(null);
                 const isSyncing = ref(false);
@@ -263,43 +336,35 @@
                 const bulkInputText = ref("");
                 const formData = ref({ charterBy: '', aircraftType: '', registration: '', routes: [] });
 
-                const aircraftTypes = ["Gulfstream IV SP", "B350i King Air", "NC212-200", "Bell 412 EP"];
-                const registrations = ["PK-TWY", "PK-TWX", "PK-TWW", "PK-TWV"];
+                // Master Data untuk Datalist (Aircraft Info)
+                const aircraftTypes = ["Gulfstream IV SP", "B350i King Air", "NC212-200", "Bell 412 EP", "Agusta 109S Grand"];
+                const registrations = ["PK-TWY", "PK-TWX", "PK-TWW", "PK-TWV", "PK-TWZ"];
+
+                // State untuk Edit Per Baris
+                const activeRouteIndex = ref(null);
+                const singleRouteData = ref(null);
 
                 /**
-                 * Fungsi Parsing Durasi Robust.
-                 * Menangani format HH:mm, ISO String dari Sheets (1899-12-30...), dan format angka mentah.
+                 * Parsing Durasi ke Menit secara robust.
                  */
                 const parseDurationToMinutes = (val) => {
                     if (!val) return 0;
-                    
-                    // Case 1: ISO String (1899-12-30T05:12...)
                     if (typeof val === 'string' && val.includes('T')) {
                         const date = new Date(val);
-                        // Google Sheets menggunakan base date 1899-12-30 untuk durasi
                         const base = new Date('1899-12-30T00:00:00Z');
                         const diffMs = date.getTime() - base.getTime();
-                        // Jika dalam rentang 1 hari (umumnya durasi leg), hitung jam dan menitnya
-                        // Jika total jam sangat besar (>24h), gunakan diffMs
-                        if (diffMs < 0) { // Kadang timezone menyebabkan offset negatif
+                        if (diffMs < 0) { 
                            const t = val.split('T')[1];
                            const p = t.split(':');
                            return parseInt(p[0]) * 60 + parseInt(p[1]);
                         }
                         return Math.floor(diffMs / 60000);
                     }
-                    
-                    // Case 2: Format String HH:mm
                     if (typeof val === 'string' && val.includes(':')) {
                         const parts = val.split(':');
                         return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
                     }
-
-                    // Case 3: Angka Mentah (fraksi hari dari Excel/Sheets)
-                    if (typeof val === 'number') {
-                        return Math.round(val * 24 * 60);
-                    }
-
+                    if (typeof val === 'number') return Math.round(val * 24 * 60);
                     return 0;
                 };
 
@@ -338,7 +403,7 @@
                             headers: { "Content-Type": "text/plain" },
                             body: JSON.stringify({ action, data, id: data?.id || data })
                         });
-                        showNotify("Data Terkirim, Menunggu Refresh...");
+                        showNotify("Terkirim, Menunggu Refresh...");
                         setTimeout(fetchFromSheet, 2500);
                         return true;
                     } catch (e) {
@@ -352,19 +417,19 @@
                 const convertToMatrix = (dur) => {
                     const totalMins = parseDurationToMinutes(dur);
                     if (totalMins === 0) return "00:00";
-                    
                     const h = Math.floor(totalMins / 60);
                     const m = totalMins % 60;
                     const mat = Math.round((m / 60) * 100);
-                    return `${String(h).padStart(2, '0')}:${String(mat).padStart(2, '0')}`;
+                    return formatMinutesToHHMM(h * 60 + mat);
                 };
 
                 const calculateDuration = (etd, eta) => {
-                    if (!etd || !eta) return "00:00";
+                    if (!etd || !eta || !etd.includes(':') || !eta.includes(':')) return "00:00";
                     const [h1, m1] = etd.split(':').map(Number);
                     const [h2, m2] = eta.split(':').map(Number);
+                    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return "00:00";
                     let t = (h2 * 60 + m2) - (h1 * 60 + m1);
-                    if (t < 0) t += 1440; // Melewati tengah malam
+                    if (t < 0) t += 1440; 
                     return formatMinutesToHHMM(t);
                 };
 
@@ -403,8 +468,9 @@
                             parsed.push({ 
                                 id: Date.now() + i, 
                                 date: p[1].includes('-') ? p[1] : new Date().toISOString().split('T')[0], 
-                                routeName: p[0].toUpperCase(), etd: p[2], eta: p[3], flightHours: p[4], 
-                                matrixHours: p[5].replace(',', ':').padStart(5, '0') 
+                                routeName: p[0].toUpperCase(), etd: p[2], eta: p[3], 
+                                flightHours: formatDurationDisplay(p[4]), 
+                                matrixHours: formatDurationDisplay(p[5].replace(',', ':')) 
                             });
                         }
                     });
@@ -417,9 +483,17 @@
 
                 const handleSave = async () => {
                     if (!formData.value.charterBy) return showNotify("Charterer Wajib Diisi", "error");
-                    const sorted = [...formData.value.routes].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+                    const cleanedRoutes = formData.value.routes.map(r => ({
+                        ...r,
+                        flightHours: formatDurationDisplay(r.flightHours),
+                        matrixHours: formatDurationDisplay(r.matrixHours)
+                    }));
+                    const sorted = [...cleanedRoutes].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
                     const std = sumTotal(sorted);
-                    const payload = { ...formData.value, id: editingId.value || Date.now(), totalHours: std, totalMatrix: convertToMatrix(std), timestamp: new Date().toISOString(), routes: sorted };
+                    const mat = sumTotal(sorted.map(r => ({ flightHours: r.matrixHours })));
+                    const payload = { 
+                        ...formData.value, id: editingId.value || Date.now(), totalHours: std, totalMatrix: mat, timestamp: new Date().toISOString(), routes: sorted 
+                    };
                     if(await syncToSheet('save', payload)) isFormOpen.value = false;
                 };
 
@@ -435,40 +509,78 @@
                     selectedLog.value = null; isFormOpen.value = true;
                 };
 
+                // --- EDIT TIAP BARIS LOGIC ---
+                const startSingleRouteEdit = (index) => {
+                    activeRouteIndex.value = index;
+                    singleRouteData.value = JSON.parse(JSON.stringify(selectedLog.value.routes[index]));
+                    isSingleRouteEditOpen.value = true;
+                };
+
+                const updateSingleRouteDurations = () => {
+                    const dur = calculateDuration(singleRouteData.value.etd, singleRouteData.value.eta);
+                    singleRouteData.value.flightHours = dur;
+                    singleRouteData.value.matrixHours = convertToMatrix(dur);
+                };
+
+                const saveSingleRoute = async () => {
+                    // Update rute spesifik di log yang terpilih
+                    const log = JSON.parse(JSON.stringify(selectedLog.value));
+                    log.routes[activeRouteIndex.value] = singleRouteData.value;
+                    
+                    // Hitung ulang total
+                    const cleanedRoutes = log.routes.map(r => ({
+                        ...r,
+                        flightHours: formatDurationDisplay(r.flightHours),
+                        matrixHours: formatDurationDisplay(r.matrixHours)
+                    }));
+                    const sorted = [...cleanedRoutes].sort((a,b) => a.date.localeCompare(b.date) || a.id - b.id);
+                    log.routes = sorted;
+                    log.totalHours = sumTotal(sorted);
+                    log.totalMatrix = sumTotal(sorted.map(r => ({ flightHours: r.matrixHours })));
+
+                    // Kirim ke database
+                    const ok = await syncToSheet('save', log);
+                    if(ok) {
+                        isSingleRouteEditOpen.value = false;
+                        selectedLog.value = log; // Update UI detail
+                        showNotify("Leg berhasil diperbarui");
+                    }
+                };
+
                 onMounted(() => { fetchFromSheet(); lucide.createIcons(); });
-                watch([isFormOpen, selectedLog, notification, showBulkInput], () => nextTick(() => lucide.createIcons()));
+                watch([isFormOpen, isSingleRouteEditOpen, selectedLog, notification, showBulkInput], () => nextTick(() => lucide.createIcons()));
 
                 return {
-                    aircraftTypes, registrations, logs, searchQuery, isFormOpen, selectedLog, editingId, isSyncing, loading, notification, formData,
+                    aircraftTypes, registrations, logs, searchQuery, isFormOpen, isSingleRouteEditOpen, selectedLog, editingId, isSyncing, loading, notification, formData,
+                    activeRouteIndex, singleRouteData,
                     filteredLogs: computed(() => {
                         const q = searchQuery.value.toLowerCase();
                         return logs.value.filter(l => (l.charterBy || "").toLowerCase().includes(q) || (l.registration || "").toLowerCase().includes(q));
                     }),
                     globalTotalStd: computed(() => {
                         let totalMins = 0;
-                        logs.value.forEach(l => {
-                            totalMins += parseDurationToMinutes(l.totalHours);
-                        });
+                        logs.value.forEach(l => { totalMins += parseDurationToMinutes(l.totalHours); });
                         return formatMinutesToHHMM(totalMins);
                     }),
                     globalTotalMatrix: computed(() => {
                         let totalMins = 0;
-                        logs.value.forEach(l => {
-                            totalMins += parseDurationToMinutes(l.totalMatrix);
-                        });
+                        logs.value.forEach(l => { totalMins += parseDurationToMinutes(l.totalMatrix); });
                         return formatMinutesToHHMM(totalMins);
                     }),
                     totalLegs: computed(() => logs.value.reduce((a,c) => a + c.routes.length, 0)),
                     currentTotalStd: computed(() => sumTotal(formData.value.routes)),
-                    currentTotalMatrix: computed(() => convertToMatrix(sumTotal(formData.value.routes))),
+                    currentTotalMatrix: computed(() => sumTotal(formData.value.routes.map(r => ({ flightHours: r.matrixHours })))),
                     openNewForm, handleAddRoute, handleRemoveRoute, updateDurations: (i) => {
-                        const r = formData.value.routes[i]; r.flightHours = calculateDuration(r.etd, r.eta); r.matrixHours = convertToMatrix(r.flightHours);
+                        const r = formData.value.routes[i]; 
+                        const dur = calculateDuration(r.etd, r.eta);
+                        r.flightHours = dur; 
+                        r.matrixHours = convertToMatrix(dur);
                     }, handleSave, startFullEdit, handleDelete, handlePrint: () => window.print(), formatDate, formatDatePrint, 
                     showBulkInput, bulkInputText, handleBulkParse, fetchFromSheet, handleDuplicate: (l) => {
                         const d = { ...l, id: Date.now(), charterBy: `${l.charterBy} (DUP)`, timestamp: new Date().toISOString() };
                         syncToSheet('save', d).then(() => showNotify("Data Diduplikasi"));
                     },
-                    formatDurationDisplay 
+                    formatDurationDisplay, startSingleRouteEdit, updateSingleRouteDurations, saveSingleRoute
                 };
             }
         }).mount('#app');
